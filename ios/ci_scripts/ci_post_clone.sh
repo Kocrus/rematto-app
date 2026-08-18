@@ -2,11 +2,12 @@
 set -e
 set -x
 
-echo "== Rematto Xcode Cloud post-clone: installing JS deps and CocoaPods =="
+echo "== Rematto Xcode Cloud post-clone: installing Node, JS deps and CocoaPods =="
+
+# Xcode Cloud images do not ship Node.js/npm by default. Install via Homebrew.
+brew install node
 
 cd "$CI_PRIMARY_REPOSITORY_PATH"
-
-# Node/npm are pre-installed on Xcode Cloud images
 npm install
 
 cd ios
