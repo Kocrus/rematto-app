@@ -1,42 +1,51 @@
 {
   "expo": {
-    "name": "rematto-app",
-    "slug": "rematto-app",
-    "version": "1.0.0",
+    "name": "Rematto",
+    "slug": "rematto",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "remattoapp",
-    "userInterfaceStyle": "automatic",
+    "scheme": "rematto",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "ios": {
-      "icon": "./assets/expo.icon"
+      "supportsTablet": false,
+      "bundleIdentifier": "app.rematto",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Rematto usa tu ubicación para mostrarte remates cercanos en el mapa.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "$(PRODUCT_MODULE_NAME).SceneDelegate",
+                "UISceneStoryboardFile": "SplashScreen"
+              }
+            ]
+          }
+        }
+      }
     },
     "android": {
+      "package": "app.rematto",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0B0B0B"
+      }
     },
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
+        "expo-notifications",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "color": "#0B0B0B"
         }
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     }
   }
 }
