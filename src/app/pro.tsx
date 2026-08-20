@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Alert, ActivityIndicator,
+  View, Text, Pressable, StyleSheet, ScrollView, Alert, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -233,6 +233,18 @@ export default function Pro() {
         <Pressable style={s.btnRestaurar} onPress={restaurar} disabled={comprando}>
           <Text style={s.btnRestaurarTxt}>Restaurar compras</Text>
         </Pressable>
+
+        <View style={s.legalRow}>
+          <Pressable onPress={() => Linking.openURL('https://rematto-3e9a6.web.app')}>
+            <Text style={s.legalTxt}>Política de Privacidad</Text>
+          </Pressable>
+          <Text style={s.legalDot}>·</Text>
+          <Pressable
+            onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/')}
+          >
+            <Text style={s.legalTxt}>Términos de Uso (EULA)</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -306,6 +318,12 @@ const s = StyleSheet.create({
   disclaimer: { fontSize: 12, color: C.sub, textAlign: 'center', marginTop: 12, lineHeight: 17 },
   btnRestaurar: { alignItems: 'center', marginTop: 24, paddingVertical: 10 },
   btnRestaurarTxt: { fontSize: 14, fontWeight: '600', color: C.sub },
+  legalRow: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 8, marginTop: 4, marginBottom: 4,
+  },
+  legalTxt: { fontSize: 12, color: C.sub, textDecorationLine: 'underline' },
+  legalDot: { fontSize: 12, color: C.sub },
   yaProCard: {
     flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: C.card,
     borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 18, marginTop: 4,
