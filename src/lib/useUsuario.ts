@@ -46,20 +46,36 @@ export function useUsuario() {
     return unsub;
   }, [user, esDemo]);
 
-  /** Guarda o cambia el rol. Se puede llamar de nuevo más adelante para cambiarlo. */
+  /**
+   * Guarda o cambia el rol. Se puede llamar de nuevo más adelante para
+   * cambiarlo.
+   *
+   * Reintenta un par de veces con una pequeña espera: justo después de
+   * crear una cuenta nueva, el token de autenticación a veces no ha
+   * terminado de propagarse al SDK de Firestore todavía, y el primer
+   * intento de escritura puede fallar con "permission-denied" aunque el
+   * usuario ya esté autenticado. Sin este reintento, el onboarding
+   * mostraba un error justo al elegir cómo usar la app.
+   */
   const elegirRol = async (nuevoRol: Rol, nombreOrganizacion?: string) => {
     if (!user) return;
-    await setDoc(
-      doc(db, 'usuarios', user.uid),
-      {
-        uid: user.uid,
-        email: user.email,
-        rol: nuevoRol,
-        ...(nombreOrganizacion ? { nombreOrganizacion } : {}),
-        actualizadoEn: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+    const datos = {
+      uid: user.uid,
+      email: user.email,
+      rol: nuevoRol,
+      ...(nombreOrganizacion ? { nombreOrganizacion } : {}),
+      actualizadoEn: new Date().toISOString(),
+    };
+    const intentos = 3;
+    for (let i = 0; i < intentos; i++) {
+      try {
+        await setDoc(doc(db, 'usuarios', user.uid), datos, { merge: true });
+        return;
+      } catch (e) {
+        if (i === intentos - 1) throw e;
+        await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+      }
+    }
   };
 
   return {

@@ -1,4 +1,7 @@
-import { View, Text, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useState } from 'react';
+import {
+  View, Text, Pressable, StyleSheet, ScrollView, Alert, ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -7,6 +10,7 @@ import { auth } from '../../lib/firebase';
 import { useAuth } from '../../lib/useAuth';
 import { useUsuario } from '../../lib/useUsuario';
 import { usePro, restaurarCompras } from '../../lib/purchases';
+import { eliminarCuenta } from '../../lib/cuenta';
 import { C, F } from '../../lib/theme';
 import LoginForm from '../../components/LoginForm';
 
@@ -15,6 +19,45 @@ export default function Perfil() {
   const { user, esDemo } = useAuth();
   const { rol, esOrganizador } = useUsuario();
   const { clientePro, martilleroPro } = usePro();
+  const [eliminando, setEliminando] = useState(false);
+
+  const confirmarEliminarCuenta = () => {
+    Alert.alert(
+      'Eliminar cuenta',
+      'Se eliminará tu cuenta y tu perfil de Rematto de forma permanente. Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: eliminarCuentaConReautenticacion },
+      ]
+    );
+  };
+
+  const eliminarCuentaConReautenticacion = async (password?: string) => {
+    try {
+      setEliminando(true);
+      await eliminarCuenta(password);
+    } catch (e: any) {
+      if (e?.code === 'auth/requires-recent-login') {
+        Alert.prompt(
+          'Confirma tu contraseña',
+          'Por seguridad, ingresa tu contraseña para eliminar tu cuenta.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Eliminar',
+              style: 'destructive',
+              onPress: (pass?: string) => pass && eliminarCuentaConReautenticacion(pass),
+            },
+          ],
+          'secure-text'
+        );
+      } else {
+        Alert.alert('No se pudo eliminar la cuenta', 'Intenta nuevamente más tarde.');
+      }
+    } finally {
+      setEliminando(false);
+    }
+  };
 
   const restaurar = async () => {
     try {
@@ -100,6 +143,20 @@ export default function Perfil() {
               <Text style={s.btnSalirTxt}>Cerrar sesión</Text>
             </Pressable>
           )}
+
+          {user && (
+            <Pressable
+              style={s.btnEliminar}
+              onPress={confirmarEliminarCuenta}
+              disabled={eliminando}
+            >
+              {eliminando ? (
+                <ActivityIndicator color="#D92D20" />
+              ) : (
+                <Text style={s.btnEliminarTxt}>Eliminar cuenta</Text>
+              )}
+            </Pressable>
+          )}
         </ScrollView>
       </SafeAreaView>
     );
@@ -158,4 +215,6 @@ const s = StyleSheet.create({
     borderColor: C.border,
   },
   btnSalirTxt: { color: C.text, fontSize: 15, fontWeight: '600' },
+  btnEliminar: { alignItems: 'center', marginTop: 16, paddingVertical: 10 },
+  btnEliminarTxt: { color: '#D92D20', fontSize: 14, fontWeight: '600' },
 });
