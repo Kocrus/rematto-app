@@ -33,6 +33,17 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="mis-remates"
+          options={{
+            headerShown: true,
+            headerTitle: '',
+            headerBackTitle: 'Volver',
+            headerShadowVisible: false,
+            headerTintColor: C.text,
+            headerStyle: { backgroundColor: C.bg },
+          }}
+        />
+        <Stack.Screen
           name="pro"
           options={{
             headerShown: true,

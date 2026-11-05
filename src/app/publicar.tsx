@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { db, auth, FIREBASE_SIN_CONFIGURAR } from '../lib/firebase';
 import { usePro } from '../lib/purchases';
@@ -17,7 +17,7 @@ const CATEGORIAS: Categoria[] = ['Propiedades', 'Vehículos', 'Maquinaria', 'Tec
 export default function Publicar() {
   const router = useRouter();
   const { martilleroPro } = usePro();
-  const { cargando: cargandoRol, esOrganizador, elegirRol } = useUsuario();
+  const { cargando: cargandoRol, esOrganizador, elegirRol, verificado } = useUsuario();
   const [activando, setActivando] = useState(false);
 
   const [titulo, setTitulo] = useState('');
@@ -64,6 +64,13 @@ export default function Publicar() {
       Alert.alert('Inicia sesión', 'Debes iniciar sesión en Perfil para publicar.');
       return;
     }
+    // Redundante con la pantalla de paywall que se muestra antes del
+    // formulario, pero se revalida acá por si la suscripción venció
+    // mientras la pantalla estaba abierta.
+    if (!martilleroPro) {
+      Alert.alert('Requiere Rematto Pro Martillero', 'Necesitas una suscripción activa para publicar remates.');
+      return;
+    }
     const fechaISO = new Date(fecha.replace(' ', 'T') + ':00').toISOString();
     if (isNaN(new Date(fechaISO).getTime())) {
       Alert.alert('Fecha inválida', 'Usa el formato: 2026-08-01 15:00');
@@ -88,9 +95,10 @@ export default function Publicar() {
         martillero: martillero.trim(),
         fuente: 'externo',
         urlFuente: urlFuente.trim(),
-        // Solo un martillero con Rematto Pro Martillero puede destacar su publicación.
-        destacado: martilleroPro && destacar,
+        destacado: destacar,
         creadoPor: auth.currentUser.uid,
+        creadoEn: serverTimestamp(),
+        martilleroVerificado: verificado,
       });
       Alert.alert('Publicado', 'Tu remate quedó publicado en Rematto.');
       setTitulo(''); setDescripcion(''); setRegion(''); setComuna(''); setDireccion('');
@@ -134,6 +142,26 @@ export default function Publicar() {
     );
   }
 
+  // Publicar remates es un beneficio exclusivo de Rematto Pro Martillero:
+  // sin suscripción activa no se puede publicar ninguno.
+  if (!martilleroPro) {
+    return (
+      <View style={s.centro}>
+        <View style={s.activarCard}>
+          <Ionicons name="lock-closed-outline" size={26} color={C.text} />
+          <Text style={s.activarTitulo}>Publicar requiere Rematto Pro Martillero</Text>
+          <Text style={s.activarSub}>
+            Suscríbete para publicar tus remates en Rematto: sin límite de publicaciones, destaca en el
+            catálogo, galería de fotos y estadísticas de vistas.
+          </Text>
+          <Pressable style={s.activarBtn} onPress={() => router.push('/pro?tipo=martillero')}>
+            <Text style={s.activarBtnTxt}>Ver Rematto Pro Martillero</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: C.bg }}
@@ -145,17 +173,6 @@ export default function Publicar() {
           Para martilleros registrados, casas de remates y empresas. Rematto publica y da
           visibilidad; el remate lo ejecutas tú en tu plataforma o lugar.
         </Text>
-
-        {!martilleroPro && (
-          <Pressable style={s.proBanner} onPress={() => router.push('/pro?tipo=martillero')}>
-            <Ionicons name="hammer-outline" size={20} color={C.text} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.proBannerTitulo}>Rematto Pro Martillero</Text>
-              <Text style={s.proBannerSub}>Destaca tus remates, fotos ilimitadas y estadísticas de vistas.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={C.sub} />
-          </Pressable>
-        )}
 
         <Campo label="Título *" value={titulo} onChange={setTitulo} placeholder="Ej: Camioneta Toyota Hilux 2021" />
         <Campo label="Descripción" value={descripcion} onChange={setDescripcion} placeholder="Detalle del bien, estado, exhibición…" multiline />
@@ -225,14 +242,10 @@ export default function Publicar() {
         <Campo label="Martillero / Entidad *" value={martillero} onChange={setMartillero} placeholder="Ej: Martillero P. González — Reg. N° 1.234" />
         <Campo label="Link a tu remate *" value={urlFuente} onChange={setUrlFuente} placeholder="https://…" sinMayusculas />
 
-        <Pressable
-          style={[s.destacarRow, !martilleroPro && { opacity: 0.5 }]}
-          onPress={() => (martilleroPro ? setDestacar((v) => !v) : router.push('/pro?tipo=martillero'))}
-        >
-          <Ionicons name={destacar && martilleroPro ? 'checkbox' : 'square-outline'} size={22} color={C.text} />
+        <Pressable style={s.destacarRow} onPress={() => setDestacar((v) => !v)}>
+          <Ionicons name={destacar ? 'checkbox' : 'square-outline'} size={22} color={C.text} />
           <View style={{ flex: 1 }}>
             <Text style={s.destacarTxt}>Destacar esta publicación</Text>
-            {!martilleroPro && <Text style={s.destacarSub}>Requiere Rematto Pro Martillero</Text>}
           </View>
         </Pressable>
 

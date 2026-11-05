@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, Alert, ActivityIndicator,
+  View, Text, Pressable, TextInput, StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,9 +17,28 @@ import LoginForm from '../../components/LoginForm';
 export default function Perfil() {
   const router = useRouter();
   const { user, esDemo } = useAuth();
-  const { rol, esOrganizador } = useUsuario();
+  const { rol, esOrganizador, nroRegistro, verificado, guardarNroRegistro } = useUsuario();
   const { clientePro, martilleroPro } = usePro();
   const [eliminando, setEliminando] = useState(false);
+  const [nroInput, setNroInput] = useState('');
+  const [guardandoNro, setGuardandoNro] = useState(false);
+
+  useEffect(() => {
+    setNroInput(nroRegistro ?? '');
+  }, [nroRegistro]);
+
+  const guardarRegistro = async () => {
+    if (!nroInput.trim()) return;
+    try {
+      setGuardandoNro(true);
+      await guardarNroRegistro(nroInput);
+      Alert.alert('Guardado', 'Revisaremos tu N° de registro y activaremos la insignia de verificado en los próximos días.');
+    } catch {
+      Alert.alert('Error', 'No se pudo guardar. Intenta nuevamente.');
+    } finally {
+      setGuardandoNro(false);
+    }
+  };
 
   const confirmarEliminarCuenta = () => {
     Alert.alert(
@@ -109,6 +128,53 @@ export default function Perfil() {
               <Text style={s.filaTxt}>Publicar remate</Text>
               <Ionicons name="chevron-forward" size={18} color={C.sub} />
             </Pressable>
+          )}
+
+          {esOrganizador && (
+            <Pressable style={s.fila} onPress={() => router.push('/mis-remates')}>
+              <Ionicons name="stats-chart-outline" size={20} color={C.text} />
+              <Text style={s.filaTxt}>Mis remates y estadísticas</Text>
+              <Ionicons name="chevron-forward" size={18} color={C.sub} />
+            </Pressable>
+          )}
+
+          {esOrganizador && (
+            <View style={s.card}>
+              <View style={s.rolRow2}>
+                <Text style={s.rolTxt}>Insignia de martillero verificado</Text>
+                {verificado && (
+                  <View style={s.badgeVerificado}>
+                    <Ionicons name="checkmark-circle" size={14} color={C.white} />
+                    <Text style={s.badgeVerificadoTxt}>Verificado</Text>
+                  </View>
+                )}
+              </View>
+              {verificado ? (
+                <Text style={s.verificadoTxt}>
+                  Tu N° de registro ya fue verificado. Todos tus remates muestran la insignia.
+                </Text>
+              ) : (
+                <>
+                  <Text style={s.verificadoTxt}>
+                    {nroRegistro
+                      ? 'Recibimos tu N° de registro. Lo estamos revisando.'
+                      : 'Ingresa tu N° de registro de martillero para solicitar la insignia de verificado.'}
+                  </Text>
+                  <View style={s.nroRow}>
+                    <TextInput
+                      style={s.nroInput}
+                      value={nroInput}
+                      onChangeText={setNroInput}
+                      placeholder="N° de registro"
+                      placeholderTextColor="#9A9A9A"
+                    />
+                    <Pressable style={s.nroBtn} onPress={guardarRegistro} disabled={guardandoNro}>
+                      <Text style={s.nroBtnTxt}>{guardandoNro ? '…' : 'Guardar'}</Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+            </View>
           )}
 
           {filasPro.map((f) => (
@@ -206,6 +272,20 @@ const s = StyleSheet.create({
     backgroundColor: C.black, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
   },
   badgeActivoTxt: { color: C.white, fontSize: 11, fontWeight: '700' },
+  rolRow2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  badgeVerificado: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: C.ok, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  badgeVerificadoTxt: { color: C.white, fontSize: 11, fontWeight: '700' },
+  verificadoTxt: { fontSize: 13, color: C.sub, marginTop: 8, lineHeight: 18 },
+  nroRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  nroInput: {
+    flex: 1, backgroundColor: C.white, borderRadius: 10, borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: C.text,
+  },
+  nroBtn: { backgroundColor: C.black, borderRadius: 10, paddingHorizontal: 16, justifyContent: 'center' },
+  nroBtnTxt: { color: C.white, fontSize: 13, fontWeight: '700' },
   btnSalir: {
     borderRadius: 12,
     paddingVertical: 14,

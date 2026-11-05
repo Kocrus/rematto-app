@@ -24,6 +24,11 @@ export type Rol = 'cliente' | 'organizador';
 export function useUsuario() {
   const { user, esDemo } = useAuth();
   const [rol, setRol] = useState<Rol | null>(null);
+  const [nroRegistro, setNroRegistro] = useState<string | null>(null);
+  // "verificado" solo lo puede activar Jorge revisando el N° de registro a
+  // mano en la consola de Firebase — nunca se escribe desde la app, para que
+  // nadie pueda auto-otorgarse la insignia de "martillero verificado".
+  const [verificado, setVerificado] = useState(false);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
@@ -34,13 +39,18 @@ export function useUsuario() {
     }
     if (!user) {
       setRol(null);
+      setNroRegistro(null);
+      setVerificado(false);
       setCargando(false);
       return;
     }
     setCargando(true);
     const ref = doc(db, 'usuarios', user.uid);
     const unsub = onSnapshot(ref, (snap) => {
-      setRol((snap.data()?.rol as Rol) ?? null);
+      const datos = snap.data();
+      setRol((datos?.rol as Rol) ?? null);
+      setNroRegistro((datos?.nroRegistro as string) ?? null);
+      setVerificado(datos?.verificado === true);
       setCargando(false);
     });
     return unsub;
@@ -78,12 +88,29 @@ export function useUsuario() {
     }
   };
 
+  /**
+   * Guarda el N° de registro de martillero declarado por el organizador.
+   * Queda pendiente de verificación manual (ver "verificado" arriba) — no
+   * activa la insignia por sí solo.
+   */
+  const guardarNroRegistro = async (nuevoNroRegistro: string) => {
+    if (!user) return;
+    await setDoc(
+      doc(db, 'usuarios', user.uid),
+      { nroRegistro: nuevoNroRegistro.trim() },
+      { merge: true }
+    );
+  };
+
   return {
     rol,
     cargando,
     tieneRol: rol != null,
     esOrganizador: rol === 'organizador',
     esCliente: rol === 'cliente',
+    nroRegistro,
+    verificado,
     elegirRol,
+    guardarNroRegistro,
   };
 }

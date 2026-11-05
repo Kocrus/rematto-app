@@ -3,17 +3,23 @@ import {
   View, Text, Image, ScrollView, Pressable, StyleSheet, Linking, Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, addDoc, collection, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
+import type { User } from 'firebase/auth';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker } from 'react-native-maps';
 import { db, FIREBASE_SIN_CONFIGURAR } from '../../lib/firebase';
 import { MOCK_REMATES } from '../../lib/mock';
 import { Remate, fmtPrecio, fmtFecha } from '../../lib/types';
 import { usePro } from '../../lib/purchases';
+import { useAuth } from '../../lib/useAuth';
 import { C, F } from '../../lib/theme';
 import Countdown from '../../components/Countdown';
 import LoginGate from '../../components/LoginGate';
 import { esFavorito, toggleFavorito, agregarACalendarioTelefono } from '../../lib/favoritos';
+
+// Número de WhatsApp de contacto para "Rematto Pro — Consulta con un experto".
+// Formato E.164 sin "+" (el que espera el link wa.me).
+const WHATSAPP_EXPERTO = '56962441942';
 
 // El detalle completo requiere cuenta según MODO_ACCESO (lib/config.ts)
 export default function FichaRemateProtegida() {
@@ -28,6 +34,7 @@ function FichaRemate() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { clientePro } = usePro();
+  const { user } = useAuth();
   const [remate, setRemate] = useState<Remate | null>(
     MOCK_REMATES.find((r) => r.id === id) ?? null
   );
@@ -45,6 +52,14 @@ function FichaRemate() {
       if (snap.exists()) setRemate({ id: snap.id, ...(snap.data() as Omit<Remate, 'id'>) });
     });
     return unsub;
+  }, [id]);
+
+  // Estadística para el organizador: una vista por apertura de ficha.
+  // Best-effort — si falla no afecta la experiencia de quien mira el remate.
+  useEffect(() => {
+    if (FIREBASE_SIN_CONFIGURAR || esMock || !id) return;
+    updateDoc(doc(db, 'remates', id), { vistas: increment(1) }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (!remate) {
@@ -191,7 +206,13 @@ function FichaRemate() {
           <Ionicons name={esJudicial ? 'business-outline' : 'person-circle-outline'} size={22} color={C.text} />
           <View style={{ flex: 1 }}>
             <Text style={s.infoLabel}>Organiza</Text>
-            <Text style={s.martilleroTxt}>{remate.martillero}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Text style={s.martilleroTxt}>{remate.martillero}</Text>
+              {remate.martilleroVerificado && (
+                <Ionicons name="checkmark-circle" size={15} color={C.ok ?? '#16A34A'} />
+              )}
+            </View>
+            {remate.martilleroVerificado && <Text style={s.caratulado}>Martillero verificado por Rematto</Text>}
             {remate.caratulado && <Text style={s.caratulado}>Causa: {remate.caratulado}</Text>}
           </View>
         </View>
@@ -213,8 +234,17 @@ function FichaRemate() {
         {/* Bloque Pro */}
         {tienePro && (
           clientePro
-            ? <BloquePro remate={remate} />
+            ? <BloquePro remate={remate} usuario={user} />
             : <BloqueProBloqueado onPress={() => router.push('/pro?tipo=cliente')} />
+        )}
+
+        {/* Consulta con un experto: visible para cualquier suscriptor Pro, incluso si
+            este remate en particular no tiene datos Pro cargados todavía */}
+        {clientePro && !tienePro && (
+          <Pressable style={s.btnFav} onPress={() => contactarExperto(remate, user)}>
+            <Ionicons name="chatbubbles-outline" size={20} color={C.white} />
+            <Text style={s.btnFavTxt}>Pregúntale a un experto</Text>
+          </Pressable>
         )}
 
         <Text style={s.disclaimer}>
@@ -225,6 +255,25 @@ function FichaRemate() {
       </View>
     </ScrollView>
   );
+}
+
+// Abre WhatsApp con un mensaje prellenado hacia el experto de Rematto y deja
+// un registro silencioso en Firestore (colección "consultas") para historial,
+// sin bloquear ni retrasar la apertura de WhatsApp si el registro falla.
+function contactarExperto(remate: Remate, usuario: User | null) {
+  if (!FIREBASE_SIN_CONFIGURAR) {
+    addDoc(collection(db, 'consultas'), {
+      remateId: remate.id,
+      remateTitulo: remate.titulo,
+      usuarioUid: usuario?.uid ?? null,
+      usuarioEmail: usuario?.email ?? null,
+      canal: 'whatsapp',
+      fecha: serverTimestamp(),
+    }).catch(() => {});
+  }
+
+  const mensaje = `Hola, tengo una consulta sobre este remate en Rematto: "${remate.titulo}" (${remate.comuna}). ¿Me pueden ayudar?`;
+  Linking.openURL(`https://wa.me/${WHATSAPP_EXPERTO}?text=${encodeURIComponent(mensaje)}`);
 }
 
 function Fila({ icono, texto }: { icono: any; texto: string }) {
@@ -253,7 +302,7 @@ function BloqueProBloqueado({ onPress }: { onPress: () => void }) {
 }
 
 // Contenido Pro desbloqueado (usuario suscrito)
-function BloquePro({ remate }: { remate: Remate }) {
+function BloquePro({ remate, usuario }: { remate: Remate; usuario: User | null }) {
   return (
     <View style={s.proCard}>
       <View style={s.proHeader}>
@@ -270,10 +319,7 @@ function BloquePro({ remate }: { remate: Remate }) {
       {remate.basesResumen?.map((b, i) => (
         <Fila key={i} icono="document-text-outline" texto={b} />
       ))}
-      <Pressable
-        style={s.btnFav}
-        onPress={() => Alert.alert('Consulta experta', 'Próximamente: chat con abogado o martillero sobre esta causa.')}
-      >
+      <Pressable style={s.btnFav} onPress={() => contactarExperto(remate, usuario)}>
         <Ionicons name="chatbubbles-outline" size={20} color={C.white} />
         <Text style={s.btnFavTxt}>Pregúntale a un experto</Text>
       </Pressable>

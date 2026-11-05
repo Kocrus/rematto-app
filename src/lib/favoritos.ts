@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { doc, increment, updateDoc } from 'firebase/firestore';
+import { db, auth, FIREBASE_SIN_CONFIGURAR } from './firebase';
 import { Remate } from './types';
 
 const KEY = 'rematto_favoritos';
@@ -32,12 +34,23 @@ export async function toggleFavorito(remate: Remate): Promise<boolean> {
   if (ya) {
     await AsyncStorage.setItem(KEY, JSON.stringify(favs.filter((f) => f !== remate.id)));
     await cancelarRecordatorio(remate.id);
+    actualizarContadorFavoritos(remate.id, -1);
     return false;
   }
 
   await AsyncStorage.setItem(KEY, JSON.stringify([...favs, remate.id]));
   await programarRecordatorio(remate);
+  actualizarContadorFavoritos(remate.id, 1);
   return true;
+}
+
+// Estadística para el organizador (Rematto Pro Martillero): cuántos usuarios
+// tienen este remate en favoritos ahora mismo. Best-effort — si falla (sin
+// sesión, remate mock, sin conexión) no interrumpe el favorito local, que ya
+// quedó guardado igual.
+function actualizarContadorFavoritos(remateId: string, delta: 1 | -1) {
+  if (FIREBASE_SIN_CONFIGURAR || !auth.currentUser || remateId.startsWith('m')) return;
+  updateDoc(doc(db, 'remates', remateId), { favoritosCount: increment(delta) }).catch(() => {});
 }
 
 async function programarRecordatorio(remate: Remate) {

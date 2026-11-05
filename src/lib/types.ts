@@ -45,6 +45,11 @@ export interface Remate {
   valorComercialEstimado?: string; // ej: "$95–110M"
   riesgoOcupacion?: string;        // ej: "Posible ocupación por el deudor"
   basesResumen?: string[];         // resumen de bases en viñetas
+
+  // --- Estadísticas (Rematto Pro Martillero) ---
+  vistas?: number;              // se incrementa cada vez que alguien abre la ficha
+  favoritosCount?: number;      // cuántos usuarios lo tienen en favoritos ahora mismo
+  martilleroVerificado?: boolean; // copia del estado de verificación del organizador al momento de publicar
 }
 
 export const fmtPrecio = (monto: number, moneda: 'CLP' | 'UF') =>
