@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRemates } from '../../lib/useRemates';
 import RemateCard from '../../components/RemateCard';
+import AnuncioBanner from '../../components/AnuncioBanner';
 import { C, F } from '../../lib/theme';
 import { ONBOARDING_KEY } from '../onboarding';
 
@@ -37,6 +38,8 @@ export default function Home() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <Text style={s.logo}>REMATTO</Text>
         <Text style={s.claim}>Todos los remates de Chile, en un solo lugar.</Text>
+
+        <AnuncioBanner />
 
         {esDemo && (
           <View style={s.demo}>
